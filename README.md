@@ -4,7 +4,7 @@ Oct 15, 2026
 
 ## Overview
 
-**GimJector Standalone** (`gimjector_fixed_v3.html`) is a zero-dependency, single-file version of GimJector — a Gimkit bot flooder — that runs entirely in the browser with no server, no Node.js, and no installation required. Drop the HTML file anywhere (a local folder, a CDN, or open it as a `file://` URL) and it works immediately.
+**GimJector Standalone** (`GimJectorStandalone.html`) is a zero-dependency, single-file version of GimJector — a Gimkit bot flooder — that runs entirely in the browser with no server, no Node.js, and no installation required. Drop the HTML file anywhere (a local folder, a CDN, or open it as a `file://` URL) and it works immediately.
 
 The original project (`GimJector-main`) is a **Node.js bridge server**: the bot logic runs on the server and all Gimkit connections are made server-side; your browser talks to your own local server over a WebSocket, which then manages all the Gimkit connections on your behalf. The standalone version eliminates the server entirely by re-implementing the same bot logic in client-side JavaScript, using [libcurl.js](https://cdn.jsdelivr.net/npm/libcurl.js@0.7.1/libcurl.js) to route all network traffic through a Wisp proxy — bypassing the CORS restrictions that would otherwise block a browser page from opening direct connections to Gimkit's servers.
 
