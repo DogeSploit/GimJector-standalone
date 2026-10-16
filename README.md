@@ -1,6 +1,6 @@
 # GimJector Standalone — README
 
-Oct 15, 2026 · @Alex
+Oct 15, 2026
 
 ## Overview
 
