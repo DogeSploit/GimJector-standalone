@@ -4,7 +4,7 @@ Oct 15, 2026
 
 ## Overview
 
-**GimJector Standalone** (`GimJectorStandalone.html`) is a zero-dependency, single-file version of GimJector — a Gimkit bot flooder — that runs entirely in the browser with no server, no Node.js, and no installation required. Drop the HTML file anywhere (a local folder, a CDN, or open it as a `file://` URL) and it works immediately.
+**GimJector Standalone** (GimJectorStandalone.html) is a zero-dependency, single-file version of GimJector — a Gimkit bot flooder — that runs entirely in the browser with no server, no Node.js, and no installation required. Drop the HTML file anywhere (a local folder, a CDN, or open it as a `file://` URL) and it works immediately.
 
 The original project (`GimJector-main`) is a **Node.js bridge server**: the bot logic runs on the server and all Gimkit connections are made server-side; your browser talks to your own local server over a WebSocket, which then manages all the Gimkit connections on your behalf. The standalone version eliminates the server entirely by re-implementing the same bot logic in client-side JavaScript, using [libcurl.js](https://cdn.jsdelivr.net/npm/libcurl.js@0.7.1/libcurl.js) to route all network traffic through a Wisp proxy — bypassing the CORS restrictions that would otherwise block a browser page from opening direct connections to Gimkit's servers.
 
@@ -20,7 +20,7 @@ The trade-off is that everything lives in memory for the lifetime of the tab. Th
 
 ## Key Technical Changes and Fixes
 
-**Script loading via `<script src>` instead of `fetch()` + blob URL** The original server version loads JavaScript dynamically using `fetch()`. In a standalone HTML file opened from `file://`, the page's origin is `null`, and `fetch()` calls to CDN URLs are blocked by CORS because a null origin is treated as opaque. The fix in `gimjector_fixed_v3.html` (the "fixed" in the filename refers to this) loads both `libcurl.js` and `lzutf8` by dynamically creating `<script src="…">` tags and appending them to `<head>`. Script tags bypass CORS for cross-origin scripts entirely, so the libraries load correctly regardless of whether the file is served over HTTP or opened directly as `file://`.
+**Script loading via `<script src>` instead of `fetch()` + blob URL** The original server version loads JavaScript dynamically using `fetch()`. In a standalone HTML file opened from `file://`, the page's origin is `null`, and `fetch()` calls to CDN URLs are blocked by CORS because a null origin is treated as opaque. The fix in GimJectorStandalone.html (the "fixed" in the filename refers to this) loads both `libcurl.js` and `lzutf8` by dynamically creating `<script src="…">` tags and appending them to `<head>`. Script tags bypass CORS for cross-origin scripts entirely, so the libraries load correctly regardless of whether the file is served over HTTP or opened directly as `file://`.
 
 **`libcurl.CurlWebSocket` instead of `ws.WebSocket`** The original server uses Node.js's `ws` package for WebSocket connections. The standalone file replaces every `new WebSocket(…)` call with `new libcurl.CurlWebSocket(…)`, which routes traffic through the configured Wisp proxy. The API shape is intentionally compatible — `onmessage`, `onerror`, `onclose`, and `.send()` all behave the same way — so the bot logic required minimal changes beyond the constructor call.
 
@@ -34,7 +34,7 @@ The trade-off is that everything lives in memory for the lifetime of the tab. Th
 
 ## Feature Comparison
 
-| Feature | Original (`GimJector-main` v6.0.0) | Standalone (`gimjector_fixed_v3.html` v6.0.1) |
+| Feature | Original (`GimJector-main` v6.0.0) | Standalone (GimJectorStandalone.html v6.0.1) |
 | --- | --- | --- |
 | Deployment | `node server.js` on your machine | Single HTML file — open directly in browser |
 | User accounts | None — single local user | None |
@@ -58,7 +58,7 @@ The trade-off is that everything lives in memory for the lifetime of the tab. Th
 
 ## How to Use
 
-1. **Open the file.** Double-click `gimjector_fixed_v3.html` to open it in your browser, or serve it from any static host. No build step, no `npm install`.
+1. **Open the file.** Double-click GimJectorStandalone.html to open it in your browser, or serve it from any static host. No build step, no `npm install`.
 2. **Wait for the libraries to load.** The status bar at the bottom of the card shows `Loading libcurl.js…` → `Loading WASM…` → `Loading lzutf8…` → `Ready — libcurl.js vX.X.X`. The Flood button is disabled until all three finish loading. This typically takes a few seconds on a normal connection.
 3. **Enter the game code.** Paste or type the Gimkit game code into the Game Code field.
 4. **Configure bots.** Set a name prefix (or toggle Random names), bot count, and spawn delay.
