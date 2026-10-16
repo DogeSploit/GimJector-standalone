@@ -1,0 +1,484 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>GimJector v6.0.1</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#080a12;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.card{background:#0f1120;border:1px solid #1f2340;border-radius:14px;padding:28px 32px;width:340px;display:flex;flex-direction:column;gap:16px}
+h1{font-size:1.25rem;font-weight:800}h1 span{color:#7c6dfa}
+.f{display:flex;flex-direction:column;gap:5px}
+label{font-size:.68rem;font-weight:700;color:#4b5675;text-transform:uppercase;letter-spacing:.6px}
+input[type=text],input[type=number]{background:#13162a;border:1px solid #1f2340;border-radius:7px;color:#e2e8f0;padding:8px 11px;font-size:.86rem;outline:none;width:100%}
+input:focus{border-color:#7c6dfa}
+input::placeholder{color:#2a2f4a}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;background:#13162a;border:1px solid #1f2340;border-radius:7px;padding:8px 11px}
+.toggle-label{font-size:.82rem}
+.toggle{width:34px;height:18px;background:#1f2340;border-radius:99px;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+.toggle.on{background:#7c6dfa}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s}
+.toggle.on::after{transform:translateX(16px)}
+button[type=submit]{background:#7c6dfa;color:#fff;border:none;border-radius:8px;padding:10px;font-size:.9rem;font-weight:700;cursor:pointer;width:100%}
+button[type=submit]:hover{opacity:.88}
+button[type=submit]:disabled{opacity:.35;cursor:not-allowed}
+#status{font-size:.78rem;color:#4b5675;text-align:center;min-height:18px;line-height:1.5}
+#status.ok{color:#22c55e}#status.err{color:#ef4444}#status.info{color:#a78bfa}
+</style></head>
+<body><div class="card">
+<h1>Gim<span>Jector</span> <span style="font-size:.65rem;background:#1f2340;color:#4b5675;padding:2px 8px;border-radius:99px;font-weight:600;vertical-align:middle">v6.0.1</span></h1>
+<div class="f"><label>Game Code</label><input id="iCode" type="text" placeholder="e.g. 123456" maxlength="10" autocomplete="off"/></div>
+<div class="toggle-row"><span class="toggle-label" style="font-size:.82rem">Random names</span><div class="toggle" id="tRandom" onclick="this.classList.toggle('on');document.getElementById('iPre').closest('.f').style.display=this.classList.contains('on')?'none':''"></div></div>
+<div class="f" id="fPre"><label>Name Prefix</label><input id="iPre" type="text" placeholder="Bot" value="Bot" maxlength="16"/></div>
+<div class="row2">
+  <div class="f"><label>Bot Count</label><input id="iCount" type="number" value="10" min="1" max="500"/></div>
+  <div class="f"><label>Delay (ms)</label><input id="iDelay" type="number" value="300" min="0" max="9999"/></div>
+</div>
+<div class="toggle-row"><span class="toggle-label">Auto-reconnect</span><div class="toggle" id="tRecon" onclick="this.classList.toggle('on')"></div></div>
+<div class="f"><label>Wisp URL</label><input id="iWisp" type="text" value="wss://wisp.mercurywork.shop/" placeholder="wss://…"/></div>
+<button type="submit" id="btnGo" onclick="go()">🚀 Flood</button>
+<div id="status">Loading libcurl.js…</div>
+</div><script>
+// ── blueboat encoder ── verbatim from network/blueboat.js ─────────────────
+function _n(t,e,n){for(var i=0,s=0,o=n.length;s<o;s++)(i=n.charCodeAt(s))<128?t.setUint8(e++,i):(i<2048?t.setUint8(e++,192|i>>6):(i<55296||57344<=i?t.setUint8(e++,224|i>>12):(s++,i=65536+((1023&i)<<10|1023&n.charCodeAt(s)),t.setUint8(e++,240|i>>18),t.setUint8(e++,128|i>>12&63)),t.setUint8(e++,128|i>>6&63)),t.setUint8(e++,128|63&i));}
+function bbEncode(e){
+  const o={type:2,data:['blueboat_JOIN_ROOM',e],options:{compress:!0},nsp:'/'};
+  return (function(t){
+    var e=[],i=[],s=function t(e,n,i){
+      var s=typeof i,o=0,r=0,a=0,c=0,l=0,u=0;
+      if('string'===s){
+        if((l=function(t){for(var e=0,n=0,i=0,s=t.length;i<s;i++)(e=t.charCodeAt(i))<128?n+=1:e<2048?n+=2:e<55296||57344<=e?n+=3:(i++,n+=4);return n;}(i))<32)e.push(160|l),u=1;
+        else if(l<256)e.push(217,l),u=2;
+        else if(l<65536)e.push(218,l>>8,l),u=3;
+        else{if(!(l<4294967296))throw new Error('String too long');e.push(219,l>>24,l>>16,l>>8,l),u=5;}
+        return n.push({h:i,u:l,t:e.length}),u+l;
+      }
+      if('number'===s)return Math.floor(i)===i&&isFinite(i)?0<=i?i<128?(e.push(i),1):i<256?(e.push(204,i),2):i<65536?(e.push(205,i>>8,i),3):i<4294967296?(e.push(206,i>>24,i>>16,i>>8,i),5):(a=i/Math.pow(2,32)>>0,c=i>>>0,e.push(207,a>>24,a>>16,a>>8,a,c>>24,c>>16,c>>8,c),9):-32<=i?(e.push(i),1):-128<=i?(e.push(208,i),2):-32768<=i?(e.push(209,i>>8,i),3):-2147483648<=i?(e.push(210,i>>24,i>>16,i>>8,i),5):(a=Math.floor(i/Math.pow(2,32)),c=i>>>0,e.push(211,a>>24,a>>16,a>>8,a,c>>24,c>>16,c>>8,c),9):(e.push(203),n.push({o:i,u:8,t:e.length}),9);
+      if('object'===s){
+        if(null===i)return e.push(192),1;
+        if(Array.isArray(i)){if((l=i.length)<16)e.push(144|l),u=1;else if(l<65536)e.push(220,l>>8,l),u=3;else{if(!(l<4294967296))throw new Error('Array too large');e.push(221,l>>24,l>>16,l>>8,l),u=5;}for(o=0;o<l;o++)u+=t(e,n,i[o]);return u;}
+        if(i instanceof Date){var h=i.getTime();return a=Math.floor(h/Math.pow(2,32)),c=h>>>0,e.push(215,0,a>>24,a>>16,a>>8,a,c>>24,c>>16,c>>8,c),10;}
+        if(i instanceof ArrayBuffer){if((l=i.byteLength)<256)e.push(196,l),u=2;else if(l<65536)e.push(197,l>>8,l),u=3;else{if(!(l<4294967296))throw new Error('Buffer too large');e.push(198,l>>24,l>>16,l>>8,l),u=5;}return n.push({l:i,u:l,t:e.length}),u+l;}
+        if('function'==typeof i.toJSON)return t(e,n,i.toJSON());
+        var d=[],f='',p=Object.keys(i);for(o=0,r=p.length;o<r;o++)'function'!=typeof i[f=p[o]]&&d.push(f);
+        if((l=d.length)<16)e.push(128|l),u=1;else if(l<65536)e.push(222,l>>8,l),u=3;else{if(!(l<4294967296))throw new Error('Object too large');e.push(223,l>>24,l>>16,l>>8,l),u=5;}
+        for(o=0;o<l;o++)u+=t(e,n,f=d[o]),u+=t(e,n,i[f]);return u;
+      }
+      if('boolean'===s)return e.push(i?195:194),1;
+      if('undefined'===s)return e.push(212,0,0),3;
+      throw new Error('Could not encode');
+    }(e,i,t);
+    var o=new ArrayBuffer(s),r=new DataView(o),a=0,c=0,l=-1;
+    0<i.length&&(l=i[0].t);
+    for(var u,h=0,d=0,f=0,p=e.length;f<p;f++)
+      if(r.setUint8(c+f,e[f]),f+1===l){
+        if(h=(u=i[a]).u,d=c+l,u.l)for(var g=new Uint8Array(u.l),E=0;E<h;E++)r.setUint8(d+E,g[E]);
+        else u.h?_n(r,d,u.h):void 0!==u.o&&r.setFloat64(d,u.o);
+        c+=h;i[++a]&&(l=i[a].t);
+      }
+    var y=Array.from(new Uint8Array(o));y.unshift(4);return new Uint8Array(y).buffer;
+  }(o));
+}
+
+// ── StegCloak hide() ── ported to browser WebCrypto + lzutf8 ────────────
+const ZWC=['\u200c','\u200d','\u2061','\u2062','\u2063','\u2064'];
+
+function _byteToBin(arr){
+  return Array.from(arr).map(b=>b.toString(2).padStart(8,'0')).join('');
+}
+function _binToZWC(pair){return ZWC[parseInt(pair,2)];}
+
+function _toConcea1(binStr){
+  // flag = ZWC[1] (encrypt=true, integrity=false)
+  let out=ZWC[1];
+  for(let i=0;i<binStr.length;i+=2) out+=_binToZWC(binStr[i]+binStr[i+1]);
+  return out;
+}
+
+function _findOptimal(secret){
+  const counts=ZWC.slice(0,4).map(z=>({z,c:0}));
+  for(const ch of secret){const idx=ZWC.indexOf(ch);if(idx>=0&&idx<4)counts[idx].c++;}
+  counts.sort((a,b)=>b.c-a.c);
+  return [counts[0].z,counts[1].z].sort();
+}
+
+const ZWC_TABLE_MAP=[
+  ZWC[0]+ZWC[1],ZWC[0]+ZWC[2],ZWC[0]+ZWC[3],
+  ZWC[1]+ZWC[2],ZWC[1]+ZWC[3],ZWC[2]+ZWC[3]
+];
+function _getCompressFlag(a,b){return ZWC[ZWC_TABLE_MAP.indexOf(a+b)];}
+
+function _shrink(secret){
+  const [r1,r2]=_findOptimal(secret);
+  const flag=_getCompressFlag(r1,r2);
+  let out=secret.replace(new RegExp(r1+r1,'g'),ZWC[4]).replace(new RegExp(r2+r2,'g'),ZWC[5]);
+  return flag+out;
+}
+
+function _embed(cover,secret){
+  const words=cover.split(' ');
+  const idx=Math.floor(Math.random()*Math.floor(words.length/2));
+  return [...words.slice(0,idx+1), secret+words[idx+1], ...words.slice(idx+2)].join(' ');
+}
+
+async function stegcloakHide(message,password,cover){
+  // 1. lzutf8 compress
+  const compressed=LZUTF8.compress(message,{outputEncoding:'ByteArray'});
+  // 2. bitwise complement
+  const complemented=new Uint8Array(compressed.map(b=>(~b)&0xFF));
+  // 3. AES-256-CTR encrypt with PBKDF2 key
+  const salt=crypto.getRandomValues(new Uint8Array(8));
+  const pwKey=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),
+    {name:'PBKDF2'},false,['deriveBits']);
+  const bits=await crypto.subtle.deriveBits(
+    {name:'PBKDF2',salt,iterations:10000,hash:'SHA-512'},pwKey,48*8);
+  const derived=new Uint8Array(bits);
+  const iv=derived.slice(0,16);
+  const key=derived.slice(16);
+  const aesKey=await crypto.subtle.importKey('raw',key,{name:'AES-CTR'},false,['encrypt']);
+  const cipherBuf=await crypto.subtle.encrypt({name:'AES-CTR',counter:iv,length:128},aesKey,complemented);
+  // 4. concat salt+ciphertext
+  const payload=new Uint8Array(8+cipherBuf.byteLength);
+  payload.set(salt,0);
+  payload.set(new Uint8Array(cipherBuf),8);
+  // 5. convert to binary string
+  const binStr=_byteToBin(payload);
+  // 6. convert to ZWC
+  const zwcStr=_toConcea1(binStr);
+  // 7. shrink
+  const shrunk=_shrink(zwcStr);
+  // 8. embed in cover
+  return _embed(cover,shrunk);
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+const ADJS=['Angry','Brave','Calm','Dark','Epic','Fast','Goofy','Happy','Icy','Jolly','Kind','Lazy','Mean','Nice','Odd','Pale','Quick','Rude','Sly','Tiny','Ultra','Vast','Wild','Zany','Bold','Cool','Dumb','Evil','Fake','Glad'];
+const NOUNS=['Axe','Bear','Cat','Dog','Egg','Fox','Gnu','Hog','Imp','Jay','Koi','Leo','Moo','Nit','Owl','Pig','Rat','Spy','Tux','Urn','Van','Wolf','Yak','Zap','Ace','Bug','Cow','Doe','Elf','Fly'];
+function rname(){return ADJS[Math.random()*ADJS.length|0]+NOUNS[Math.random()*NOUNS.length|0]+(Math.random()*99+1|0);}
+
+let flooding=false,floodCode='',floodCfg={};
+const bots=new Map();
+let seq=0,jidCache=null,jidAt=0;
+let cAlive=0,cFail=0,lastErr='';
+
+function st(msg,cls){const el=document.getElementById('status');el.textContent=msg;el.className=cls||'';}
+function notif(title,body,tag){if(typeof Notification==='undefined'||Notification.permission!=='granted')return;try{new Notification(title,{body,tag:tag||'gj',silent:false});}catch(e){}}
+function stats(){return `Alive: ${cAlive} | Failed: ${cFail} | Total: ${bots.size}`;}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+// ── JID ── mirrors server.js getJID exactly ────────────────────────────────
+async function getJID(force){
+  if(!force&&jidCache&&Date.now()-jidAt<120000)return jidCache;
+  const r=await libcurl.fetch('https://www.gimkit.com/join');
+  if(!r.ok)throw new Error('gimkit.com/join HTTP '+r.status);
+  const doc=new DOMParser().parseFromString(await r.text(),'text/html');
+  const m=doc.querySelector("meta[property='int:jid']");
+  if(!m)throw new Error('int:jid meta not found');
+  // server.js: jidCache = meta.getAttribute('content').split('').reverse().join('')
+  jidCache=m.getAttribute('content').split('').reverse().join('');
+  jidAt=Date.now();
+  return jidCache;
+}
+
+// ── Bot ── mirrors server.js Bot class exactly ─────────────────────────────
+class Bot{
+  constructor(id,name,onDrop){
+    this.id=id;this.name=name;this.onDrop=onDrop;
+    this.ws=null;this.alive=false;this._open=false;this._hb=null;
+  }
+
+  // server.js Bot.spawn(code, jid)
+  async spawn(code,jid){
+    // Step 1: find-info-from-code
+    const ir=await libcurl.fetch(
+      'https://www.gimkit.com/api/matchmaker/find-info-from-code',
+      {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})}
+    );
+    const info=await ir.json();
+    if(!ir.ok||info.code===404)throw new Error('Game "'+code+'" not found ('+ir.status+')');
+    // server.js: const roomId = info.roomId ?? info.room?.roomId;
+    const roomId=info.roomId??info.room?.roomId;
+    if(!roomId)throw new Error('No roomId in response');
+
+    // Step 2: matchmaker/join
+    const jr=await libcurl.fetch('https://www.gimkit.com/api/matchmaker/join',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Origin':'https://www.gimkit.com','Referer':'https://www.gimkit.com/join'},
+      body:JSON.stringify({clientType:await stegcloakHide(jid,'BSKA','Gimkit Web Client V3.1'),name:this.name,roomId})
+    });
+    const jt=await jr.text();
+    if(!jr.ok)throw new Error('matchmaker/join '+jr.status+': '+jt.slice(0,100));
+    const join=JSON.parse(jt);
+    if(!join.serverUrl)throw new Error('No serverUrl in join response');
+    // server.js: const finalRoom = join.roomId ?? roomId;
+    const finalRoom=join.roomId??roomId;
+
+    // Step 3: connect via blueboat or colyseus
+    // server.js: if (join.source === 'original') _blueboat else _colyseus
+    if(join.source==='original'){
+      await this._blueboat(join.serverUrl,finalRoom,join.intentId);
+    }else{
+      await this._colyseus(join.serverUrl,finalRoom,join.intentId);
+    }
+  }
+
+  // server.js _blueboat ── using libcurl.CurlWebSocket instead of ws.WebSocket
+  _blueboat(serverUrl,roomId,intentId){
+    return new Promise((resolve,reject)=>{
+      // server.js: `wss${serverUrl.substr(5)}/blueboat/?id=&EIO=3&transport=websocket`
+      const url='wss'+serverUrl.substr(5)+'/blueboat/?id=&EIO=3&transport=websocket';
+      const ws=new libcurl.CurlWebSocket(url,[],{
+        headers:{
+          'Origin':'https://www.gimkit.com',
+          // server.js uses full Chrome UA
+          'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36'
+        }
+      });
+      this.ws=ws;
+      let done=false;
+
+      const timer=setTimeout(()=>{
+        if(!done){done=true;try{ws.close();}catch(e){}reject(new Error('"'+this.name+'" timed out'));}
+      },15000);
+
+      ws.onopen=()=>{
+        clearTimeout(timer);
+        this._open=true;
+        // server.js: ws.send(blueboatEncode({ roomId, options: { intent: intentId } }))
+        // bbEncode returns ArrayBuffer ─ wrap in Uint8Array for libcurl.CurlWebSocket.send()
+        ws.send(new Uint8Array(bbEncode({roomId,options:{intent:intentId}})));
+        // server.js heartbeat: send '2' every 25s while open
+        this._hb=setInterval(()=>{if(this._open)try{ws.send('2');}catch(e){}},25000);
+      };
+
+      ws.onmessage=(data)=>{
+        if(this.alive)return;
+        // server.js: raw.startsWith('0') || raw.startsWith('40') || Buffer.isBuffer(data)
+        // In libcurl.js: text → string, binary → Uint8Array
+        const raw=typeof data==='string'?data:new TextDecoder().decode(data);
+        if(raw.startsWith('0')||raw.startsWith('40')||(data instanceof Uint8Array)){
+          this.alive=true;
+          if(!done){done=true;resolve();}
+        }
+      };
+
+      // server.js: ws.on('error', err => reject(new Error(err.message)))
+      // libcurl.CurlWebSocket: onerror(code) ─ code is a libcurl error number
+      ws.onerror=(code)=>{
+        clearTimeout(timer);
+        if(!done){done=true;reject(new Error('WebSocket error code '+code));}
+      };
+
+      ws.onclose=()=>{
+        clearTimeout(timer);
+        this._open=false;
+        if(this._hb){clearInterval(this._hb);this._hb=null;}
+        // server.js: if (this.alive) { this.alive=false; this._log('warn'...); this.onDrop() }
+        if(this.alive){
+          this.alive=false;
+          if(this.onDrop)this.onDrop();
+        }else if(!done){
+          done=true;reject(new Error('"'+this.name+'" closed before joining'));
+        }
+      };
+    });
+  }
+
+  // server.js _colyseus
+  async _colyseus(serverUrl,roomId,intentId){
+    // server.js: fetch serverUrl/matchmake/joinById/roomId with intentId
+    const sr=await libcurl.fetch(serverUrl+'/matchmake/joinById/'+roomId,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({intentId})
+    });
+    const seat=await sr.json();
+    if(!seat.sessionId)throw new Error('Colyseus: no sessionId');
+    // server.js: `wss${serverUrl.substr(5)}/${seat.room.processId}/${seat.room.roomId}?sessionId=${seat.sessionId}`
+    const url='wss'+serverUrl.substr(5)+'/'+seat.room.processId+'/'+seat.room.roomId+'?sessionId='+seat.sessionId;
+
+    return new Promise((resolve,reject)=>{
+      const ws=new libcurl.CurlWebSocket(url,[],{headers:{Origin:'https://www.gimkit.com'}});
+      this.ws=ws;
+      let done=false;
+
+      const timer=setTimeout(()=>{
+        if(!done){done=true;try{ws.close();}catch(e){}reject(new Error('Colyseus timeout'));}
+      },10000);
+
+      // server.js: ws.once('message') ─ first message only
+      ws.onmessage=(data)=>{
+        clearTimeout(timer);
+        const raw=typeof data==='string'?data:new TextDecoder().decode(data);
+        if(raw.includes('"type":"FULL"')){
+          try{ws.close();}catch(e){}
+          if(!done){done=true;reject(new Error('Room full'));}
+          return;
+        }
+        // server.js sets this.alive=true then resolves ─ NO heartbeat for Colyseus
+        this.alive=true;
+        // after first message, ignore subsequent ones (server uses ws.once)
+        ws.onmessage=()=>{};
+        if(!done){done=true;resolve();}
+      };
+
+      ws.onerror=(code)=>{
+        clearTimeout(timer);
+        if(!done){done=true;reject(new Error('Colyseus error '+code));}
+      };
+
+      ws.onclose=()=>{
+        // server.js: if (this.alive) { this.alive=false; this.onDrop() }
+        if(this._hb){clearInterval(this._hb);this._hb=null;}
+        if(this.alive){
+          this.alive=false;
+          if(this.onDrop)this.onDrop();
+        }else if(!done){
+          done=true;reject(new Error('Colyseus closed before joining'));
+        }
+      };
+    });
+  }
+
+  disconnect(){
+    this._open=false;
+    if(this._hb){clearInterval(this._hb);this._hb=null;}
+    if(this.ws){try{this.ws.close();}catch(e){}this.ws=null;}
+    this.alive=false;
+  }
+}
+
+// ── spawnBot ── mirrors server.js spawnBot with retry and auto-reconnect ───
+async function spawnBot(name,retries=2){
+  const id=++seq;
+  const bot=new Bot(id,name,()=>{
+    // onDrop callback ─ mirrors server.js
+    cAlive--;
+    notif('\u{1f494} Dropped','"'+name+'" disconnected.\n'+stats(),'gj-d'+id);
+    st(stats(),'info');
+    if(flooding&&floodCfg.autoReconnect){
+      setTimeout(async()=>{
+        if(!flooding)return;
+        try{
+          await bot.spawn(floodCode,await getJID());
+          cAlive++;
+          notif('\u{1f9f5} Reconnected','"'+name+'" rejoined.\n'+stats(),'gj-r'+id);
+          st(stats(),'info');
+        }catch(e){
+          cFail++;
+          notif('\u274c Reconnect failed','"'+name+'": '+e.message,'gj-rf'+id);
+        }
+      },2000);
+    }
+  });
+  bots.set(id,bot);
+
+  // server.js retry loop: for attempt 0..retries
+  for(let attempt=0;attempt<=retries;attempt++){
+    try{
+      await bot.spawn(floodCode,await getJID(attempt>0));
+      cAlive++;
+      notif('\u{1f9f5} Joined','"'+name+'" is in game.\n'+stats(),'gj-ok'+id);
+      st(stats(),'ok');
+      return;
+    }catch(e){
+      if(attempt<retries){
+        await sleep(500*(attempt+1));
+      }else{
+        cFail++;
+        bots.delete(id);
+        console.error('[GimJector]',name,e);
+        lastErr=e.message;
+        notif('\u274c Failed','"'+name+'": '+e.message+'\n'+stats(),'gj-f'+id);
+        st(stats()+' | '+lastErr,'err');
+      }
+    }
+  }
+}
+
+// ── go() ── called on form submit ──────────────────────────────────────────
+async function go(){
+  if(flooding){st('Already flooding — close tab to stop.','err');return;}
+  const code=document.getElementById('iCode').value.trim();
+  if(!code){st('Enter a game code.','err');return;}
+  const useRandom=document.getElementById('tRandom').classList.contains('on');
+  const prefix=document.getElementById('iPre').value.trim()||'Bot';
+  const count=Math.max(1,parseInt(document.getElementById('iCount').value)||10);
+  const delay=Math.max(0,parseInt(document.getElementById('iDelay').value)||300);
+  const autoReconnect=document.getElementById('tRecon').classList.contains('on');
+  let wisp=document.getElementById('iWisp').value.trim()||'wss://wisp.mercurywork.shop/';
+  if(!wisp.endsWith('/'))wisp+='/';
+
+  flooding=true;floodCode=code;floodCfg={autoReconnect};
+  bots.clear();seq=0;cAlive=0;cFail=0;
+  document.getElementById('btnGo').disabled=true;
+
+  // Request notification permission
+  if(typeof Notification!=='undefined'&&Notification.permission==='default'){
+    await Notification.requestPermission().catch(()=>{});
+  }
+
+  st('Applying Wisp proxy…','info');
+  libcurl.set_websocket(wisp);
+
+  st('Pre-warming JID…','info');
+  try{
+    await getJID(true);
+  }catch(e){
+    st('JID fetch failed: '+e.message,'err');
+    flooding=false;
+    document.getElementById('btnGo').disabled=false;
+    return;
+  }
+
+  notif('\u{1f680} GimJector starting','Flooding '+code+' with '+count+' bots…','gj-start');
+  st('Flooding '+code+' with '+count+' bots…','info');
+
+  for(let i=0;i<count;i++){
+    if(!flooding)break;
+    const name=useRandom?rname():prefix+(i+1);
+    spawnBot(name).catch(()=>{});
+    if(i<count-1)await sleep(delay);
+  }
+
+  st('All '+count+' dispatched. '+stats(),'ok');
+  notif('\u{1f680} All bots dispatched',count+' bots sent to game '+code,'gj-done');
+}
+
+// ── Load libcurl.js + lzutf8 on page open ─────────────────────────────────
+// FIX: both libraries loaded via <script src> tags (NOT fetch+blob)
+// data: URIs have null origin — native fetch() to CDN is CORS-blocked.
+// <script src> tags bypass this restriction entirely.
+document.getElementById('btnGo').disabled=true;
+(async()=>{
+  try{
+    st('Loading libcurl.js…','info');
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/libcurl.js@0.7.1/libcurl.js';
+      s.onload=res;
+      s.onerror=()=>rej(new Error('Failed to load libcurl.js from jsDelivr'));
+      document.head.appendChild(s);
+    });
+    st('Loading WASM…','info');
+    await libcurl.load_wasm('https://cdn.jsdelivr.net/npm/libcurl.js@0.7.1/libcurl.wasm');
+    // Set default Wisp — user can override before clicking Flood
+    libcurl.set_websocket('wss://wisp.mercurywork.shop/');
+    // ── FIX: load lzutf8 via <script src> tag, NOT fetch()+blob ──────────
+    // fetch() from a data: URI page fails (CORS null origin).
+    // <script src> loads cross-origin scripts without CORS restrictions.
+    st('Loading lzutf8…','info');
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/lzutf8@0.5.8/build/production/lzutf8.min.js';
+      s.onload=res;
+      s.onerror=()=>rej(new Error('lzutf8 load failed'));
+      document.head.appendChild(s);
+    });
+    // LZUTF8 browser build exposes window.LZUTF8 (uppercase) — alias to lowercase for compat
+    if(typeof LZUTF8!=='undefined')window.lzutf8=LZUTF8;
+    st('Ready — libcurl.js v'+libcurl.version.lib,'ok');
+    document.getElementById('btnGo').disabled=false;
+  }catch(e){
+    st('Init failed: '+e.message,'err');
+  }
+})();
+
+window.addEventListener('beforeunload',()=>{flooding=false;bots.forEach(b=>b.disconnect());});
+</script></body></html>
